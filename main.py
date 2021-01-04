@@ -1,37 +1,39 @@
 import requests
 
 
-def main(login='test', password=12345, username='ivanov'):
-    base_url = 'http://testapi.ru'
+class TestApi:
+    def __init__(self, base_url):
+        self.base_url = base_url
+        self.token = None
 
-    response = requests.get(base_url, auth=(login, password))
-    test_var = {'login': 'BAD', 'get_user': 'BAD', 'update': 'BAD'}
-    if response.status_code == 200:
+    def auth(self, login, password):
+        response = requests.get(self.base_url + '/auth',
+                                auth=(login, password))
+        if response.status_code != 200:
+            raise Exception('Error happened while getting auth url')
         data = response.json()
-        test_var['login'] = data['status']
-        if data['status'] == 'OK':
-            token = data['token']
-            response = requests.get(base_url + '/get-user/{}'.format(username),
-                                    params={'token': token})
-            if response.status_code == 200:
-                data = response.json()
-                test_var['get_user'] = data['status']
-                if data['status'] == 'OK':
-                    user_id = data['user_id']
-                    post_data = {
-                        'active': '1',
-                        'blocked': True,
-                        'name': 'Petr Petrovich',
-                        'permissions': [
-                            {
-                                'id': 1,
-                                'permission': 'comment'
-                            },
-                        ]
-                    }
-                    response = requests.post(base_url + '/user/{}/update'.format(user_id),
-                                             params={'token': token},
-                                             json=post_data)
-                    data = response.json()
-                    test_var['update'] = data['status']
-    return test_var
+        if data['status'] != 'OK':
+            raise Exception('Error happened while login')
+        self.token = data['token']
+        return data
+
+    def get_user(self, username):
+        response = requests.get(self.base_url + '/get-user/{}'.format(username),
+                                params={'token': self.token})
+        if response.status_code != 200:
+            raise Exception('Error happened while getting user-get url')
+        data = response.json()
+        if data['status'] != 'OK':
+            raise Exception('Error happened while getting user data, status={}'.format(data['status']))
+        return data
+
+    def update_user(self, user_id, post_data):
+        response = requests.post(self.base_url + '/user/{}/update'.format(user_id),
+                                 params={'token': self.token},
+                                 json=post_data)
+        if response.status_code != 200:
+            raise Exception('Error happened while getting user-update url')
+        data = response.json()
+        if data['status'] != 'OK':
+            raise Exception('Error happened while updating user')
+        return data
